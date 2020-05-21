@@ -3,7 +3,10 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"math"
+	"net/http"
 	"os"
 )
 
@@ -20,8 +23,16 @@ var sin30, cos30 = math.Sin(angle), math.Cos(angle) // sin(30°), cos(30°)
 
 type f func(x, y float64) float64
 
+// Main Creates a web server that displays the SVG
 func main() {
-	fmt.Println("<h1>" + os.Args[1] + "</h1>")
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		svg(w)
+	})
+	log.Fatal(http.ListenAndServe(":8000", nil))
+}
+
+func svg(out io.Writer) {
 	var t f
 	if len(os.Args) != 1 {
 		switch os.Args[1] {
@@ -36,9 +47,10 @@ func main() {
 		return
 	}
 
-	fmt.Printf("<svg xmlns='http://www.w3.org/2000/svg' "+
+	fmt.Fprintf(out, "<svg xmlns='http://www.w3.org/2000/svg' "+
 		"style='stroke: grey; fill: white; stroke-width: 0.7' "+
 		"width='%d' height='%d'>", width, height)
+	fmt.Fprintln(out,"")
 	for i := 0; i < cells; i++ {
 		for j := 0; j < cells; j++ {
 			ax, ay, az := corner(i+1, j, t)
@@ -52,12 +64,12 @@ func main() {
 			}
 
 			if math.IsInf(ay, 0) != true && math.IsInf(by, 0) != true && math.IsInf(cy, 0) != true && math.IsInf(dy, 0) != true {
-				fmt.Printf("<polygon fill="+fill+" points='%g,%g %g,%g %g,%g %g,%g'/>\n",
-					ax, ay, bx, by, cx, cy, dx, dy)
+				fmt.Fprintf(out, "<polygon fill=\"%v\" points='%g,%g %g,%g %g,%g %g,%g'/>\n",
+					fill,ax, ay, bx, by, cx, cy, dx, dy)
 			}
 		}
 	}
-	fmt.Println("</svg>")
+	fmt.Fprintln(out, "</svg>")
 }
 
 func corner(i, j int, t f) (float64, float64, float64) {
